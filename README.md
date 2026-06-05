@@ -346,42 +346,6 @@ pip install -r requirements.txt
 
 ---
 
-# Files Submitted
-
-## Task 1
-
-* scraper.py
-* match_data.csv
-
-## Task 2
-
-* model.py
-* winner_predictor.pkl
-* team_encoder.pkl
-* venue_encoder.pkl
-* winner_encoder.pkl
-
-## Task 3
-
-* rag_search.py
-
-## Documentation
-
-* README.md
-
----
-
-# Future Improvements
-
-* Collect several hundred historical matches for better model accuracy.
-* Include player statistics and team rankings as additional features.
-* Experiment with XGBoost and Gradient Boosting models.
-* Store embeddings in a persistent vector database.
-* Develop a web-based dashboard for predictions and semantic search.
-* Integrate a Large Language Model to generate natural language answers from retrieved match data.
-
----
-
 # Conclusion
 
 This project demonstrates practical skills in web scraping, data preprocessing, machine learning, model evaluation, vector embeddings, and semantic search. It follows a complete end-to-end workflow from data collection to intelligent information retrieval and serves as a foundation for more advanced sports analytics systems.
