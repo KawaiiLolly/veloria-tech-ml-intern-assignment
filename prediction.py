@@ -1,92 +1,62 @@
 """
-    prediction.py
+prediction.py
 """
 
 import pickle
 import pandas as pd
 
+
 def load_files():
-    """Load model and encoders"""
+    files = [
+        "winner_predictor.pkl",
+        "team_encoder.pkl",
+        "venue_encoder.pkl",
+        "winner_encoder.pkl",
+    ]
+    objs = []
+    for file in files:
+        with open(file, "rb") as f:
+            objs.append(pickle.load(f))
 
-    with open("winner_predictor.pkl", "rb") as f:
-        model = pickle.load(f)
-
-    with open("team_encoder.pkl", "rb") as f:
-        team_encoder = pickle.load(f)
-
-    with open("venue_encoder.pkl", "rb") as f:
-        venue_encoder = pickle.load(f)
-
-    with open("winner_encoder.pkl", "rb") as f:
-        winner_encoder = pickle.load(f)
-
-    return (
-        model,
-        team_encoder,
-        venue_encoder,
-        winner_encoder,
-    )
+    return objs
 
 
 def get_user_input():
     print("\nEnter Match Details")
     print("-" * 40)
-
     team1 = input("Team 1: ").strip()
     team2 = input("Team 2: ").strip()
     venue = input("Venue: ").strip()
     home_team = input("Home Team: ").strip()
+    return team1, team2, venue, home_team
 
-    return (team1,team2,venue,home_team)
 
-
-def predict_winner(
-    model,
-    team_encoder,
-    venue_encoder,
-    winner_encoder,
-    team1,
-    team2,
-    venue,
-    home_team,
-):
-    """Predict match winner"""
-
+def predict_winner(model,team_enc,venue_enc,winner_enc, team1, team2,venue, home_team,):
     try:
-        team1_enc = team_encoder.transform([team1])[0]
-        team2_enc = team_encoder.transform([team2])[0]
-        venue_enc = venue_encoder.transform([venue])[0]
+        x = pd.DataFrame(
+            [[
+                team_enc.transform([team1])[0],
+                team_enc.transform([team2])[0],
+                venue_enc.transform([venue])[0],
+                int(team1 == home_team),
+            ]],
+            columns=[
+                "team1_enc",
+                "team2_enc",
+                "venue_enc",
+                "is_home",
+            ],
+        )
 
     except ValueError as e:
-        print("\nError:")
-        print(
-            "Unknown team or venue found."
-        )
+        print("\nError")
+        print("-" * 40)
+        print("Unknown team or venue found.")
         print(e)
         return
 
-    is_home = int(team1 == home_team)
-
-    x_new = pd.DataFrame(
-        [
-            [
-                team1_enc,
-                team2_enc,
-                venue_enc,
-                is_home,
-            ]
-        ],
-        columns=[
-            "team1_enc",
-            "team2_enc",
-            "venue_enc",
-            "is_home",
-        ],
-    )
-
-    prediction = model.predict(x_new)[0]
-
-    winner = winner_encoder.inverse_transform([prediction])[0]
+    y = model.predict(x)[0]
+    winner = winner_enc.inverse_transform([y])[0]
 
     print("\nPrediction")
     print("-" * 40)
@@ -94,21 +64,9 @@ def predict_winner(
 
 
 def main():
-
-    (model,team_encoder,venue_encoder,winner_encoder) = load_files()
-
-    (team1, team2,venue,home_team,) = get_user_input()
-
-    predict_winner(
-        model,
-        team_encoder,
-        venue_encoder,
-        winner_encoder,
-        team1,
-        team2,
-        venue,
-        home_team,
-    )
+    model, team_enc, venue_enc, winner_enc = load_files()
+    team1, team2, venue, home_team = get_user_input()
+    predict_winner(model, team_enc, venue_enc, winner_enc,team1,team2,venue, home_team,)
 
 
 if __name__ == "__main__":

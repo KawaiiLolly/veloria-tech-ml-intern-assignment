@@ -1,97 +1,46 @@
 """
-    model.py
+model.py
 """
 
 import pickle
 import pandas as pd
 
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report
 
 DATA_FILE = "match_data.csv"
 
 
 def load_data():
-    """Load and clean dataset"""
-
-    df = pd.read_csv(DATA_FILE)
-
-    required_columns = [
-        "team1",
-        "team2",
-        "winner",
-        "venue",
-        "home_team",
-    ]
-
-    df = df.dropna(subset=required_columns)
-
-    return df
+    cols = ["team1", "team2", "winner", "venue", "home_team"]
+    return pd.read_csv(DATA_FILE).dropna(subset=cols)
 
 
 def create_features(df):
-    """Create model features"""
+    team_enc = LabelEncoder()
+    venue_enc = LabelEncoder()
+    winner_enc = LabelEncoder()
 
-    team_encoder = LabelEncoder()
-    venue_encoder = LabelEncoder()
-    winner_encoder = LabelEncoder()
+    teams = pd.concat([df["team1"], df["team2"]]).unique()
+    team_enc.fit(teams)
 
-    all_teams = pd.concat(
-        [
-            df["team1"],
-            df["team2"]
-        ]
-    ).unique()
+    df["team1_enc"] = team_enc.transform(df["team1"])
+    df["team2_enc"] = team_enc.transform(df["team2"])
+    df["venue_enc"] = venue_enc.fit_transform(df["venue"])
+    df["winner_enc"] = winner_enc.fit_transform(df["winner"])
+    df["is_home"] = (df["team1"] == df["home_team"]).astype(int)
 
-    team_encoder.fit(all_teams)
-
-    df["team1_enc"] = team_encoder.transform(
-        df["team1"]
-    )
-
-    df["team2_enc"] = team_encoder.transform(
-        df["team2"]
-    )
-
-    df["venue_enc"] = venue_encoder.fit_transform(
-        df["venue"]
-    )
-
-    df["winner_enc"] = winner_encoder.fit_transform(
-        df["winner"]
-    )
-
-    df["is_home"] = (
-        df["team1"] == df["home_team"]
-    ).astype(int)
-
-    X = df[
-        [
-            "team1_enc",
-            "team2_enc",
-            "venue_enc",
-            "is_home",
-        ]
-    ]
-
+    x = df[["team1_enc", "team2_enc", "venue_enc", "is_home"]]
     y = df["winner_enc"]
 
-    return (
-        X,
-        y,
-        team_encoder,
-        venue_encoder,
-        winner_encoder,
-    )
+    return x, y, team_enc, venue_enc, winner_enc
 
 
-def train_model(X, y):
-    """Train Random Forest"""
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
+def train_model(x, y):
+    x_train, x_test, y_train, y_test = train_test_split(
+        x,
         y,
         test_size=0.20,
         random_state=42,
@@ -102,164 +51,89 @@ def train_model(X, y):
         random_state=42,
     )
 
-    model.fit(X_train, y_train)
+    model.fit(x_train, y_train)
 
-    predictions = model.predict(X_test)
+    preds = model.predict(x_test)
+    acc = accuracy_score(y_test, preds)
 
-    accuracy = accuracy_score(
-        y_test,
-        predictions,
-    )
-
-    return (
-        model,
-        predictions,
-        y_test,
-        accuracy,
-    )
+    return model, preds, y_test, acc
 
 
-def evaluate_model(
-    predictions,
-    y_test,
-    winner_encoder,
-):
-    """Print model metrics"""
-
+def evaluate_model(preds, y_test, winner_enc):
     print("\nModel Evaluation")
     print("-" * 50)
+    print(f"Accuracy: {accuracy_score(y_test, preds):.2f}")
 
-    print(
-        f"Accuracy: {accuracy_score(y_test, predictions):.2f}"
-    )
-
-    labels = sorted(
-        set(y_test) |
-        set(predictions)
-    )
+    labels = sorted(set(y_test) | set(preds))
 
     print("\nClassification Report\n")
-
     print(
         classification_report(
             y_test,
-            predictions,
+            preds,
             labels=labels,
-            target_names=winner_encoder.inverse_transform(
-                labels
-            ),
+            target_names=winner_enc.inverse_transform(labels),
             zero_division=0,
         )
     )
 
 
-def show_feature_importance(
-    model,
-    feature_names,
-):
-    """Display feature importance"""
-
+def show_feature_importance(model, features):
     print("\nFeature Importance")
     print("-" * 50)
 
-    for feature, score in zip(
-        feature_names,
-        model.feature_importances_,
-    ):
-        print(
-            f"{feature:<15}: {score:.4f}"
-        )
+    for feature, score in zip(features, model.feature_importances_):
+        print(f"{feature:<12}: {score:.4f}")
 
 
-def save_model(
-    model,
-    team_encoder,
-    venue_encoder,
-    winner_encoder,
-):
-    """Save model and encoders"""
+def save_model(model, team_enc, venue_enc, winner_enc):
+    files = {
+        "winner_predictor.pkl": model,
+        "team_encoder.pkl": team_enc,
+        "venue_encoder.pkl": venue_enc,
+        "winner_encoder.pkl": winner_enc,
+    }
 
-    with open(
-        "./models/winner_predictor.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(model, f)
-
-    with open(
-        "./models/team_encoder.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(team_encoder, f)
-
-    with open(
-        "./models/venue_encoder.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(venue_encoder, f)
-
-    with open(
-        "./models/winner_encoder.pkl",
-        "wb",
-    ) as f:
-        pickle.dump(winner_encoder, f)
+    for name, obj in files.items():
+        with open(f"./models/{name}", "wb") as f:
+            pickle.dump(obj, f)
 
     print("\nSaved Files")
     print("-" * 50)
-    print("winner_predictor.pkl")
-    print("team_encoder.pkl")
-    print("venue_encoder.pkl")
-    print("winner_encoder.pkl")
+
+    for name in files:
+        print(name)
 
 
 def main():
-
-    print(
-        "\nCricket Match Winner Prediction"
-    )
-
+    print("\nCricket Match Winner Prediction")
     print("-" * 50)
 
     df = load_data()
+    print(f"Total Matches Loaded: {len(df)}")
 
-    print(
-        f"Total Matches Loaded: {len(df)}"
-    )
+    x, y, team_enc, venue_enc, winner_enc = create_features(df)
 
-    (
-        X,
-        y,
-        team_encoder,
-        venue_encoder,
-        winner_encoder,
-    ) = create_features(df)
+    model, preds, y_test, acc = train_model(x, y)
 
-    (
-        model,
-        predictions,
-        y_test,
-        accuracy,
-    ) = train_model(X, y)
-
-    print(
-        f"\nAccuracy: {accuracy:.2f}"
-    )
+    print(f"\nAccuracy: {acc:.2f}")
 
     evaluate_model(
-        predictions,
+        preds,
         y_test,
-        winner_encoder,
+        winner_enc,
     )
 
     show_feature_importance(
         model,
-        X.columns,
+        x.columns,
     )
 
     save_model(
         model,
-        team_encoder,
-        venue_encoder,
-        winner_encoder,
+        team_enc,
+        venue_enc,
+        winner_enc,
     )
 
 

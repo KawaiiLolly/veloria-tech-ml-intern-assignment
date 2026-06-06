@@ -35,10 +35,7 @@ print("Embedding model loaded")
 embeddings = model.encode(
     sentences
 )
-
 print("Embeddings created")
-
-
 client = chromadb.Client()
 
 collection = client.create_collection(
@@ -54,33 +51,23 @@ collection.add(
 print("Vectors stored in ChromaDB")
 
 def search_matches(query):
-
-    query_embedding = model.encode(
-        [query]
-    )
-
+    query_embedding = model.encode([query])
     results = collection.query(
         query_embeddings=query_embedding.tolist(),
         n_results=3,
     )
-
     return results
 
 
 while True:
-
     query = input(
         "\nAsk a question (or type exit): "
     )
-
     if query.lower() == "exit":
         break
 
     results = search_matches(query)
-
     print("\nTop Matches:\n")
-
     for match in results["documents"][0]:
-
         print(match)
         print("-" * 50)

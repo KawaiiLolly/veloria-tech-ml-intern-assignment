@@ -34,11 +34,6 @@ def fetch_page(url: str) -> BeautifulSoup | None:
 
 
 def parse_howstat_results(soup: BeautifulSoup, team_name: str) -> list[dict]:
-    """
-    Attempt to parse match results from HowStat's result tables.
-    HowStat exposes plain HTML tables — easier to parse than ESPN.
-    Returns a list of match dicts (may be empty if parsing fails).
-    """
     matches = []
     try:
         tables = soup.find_all("table")
